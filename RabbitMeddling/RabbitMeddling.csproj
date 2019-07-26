@@ -9,8 +9,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="4.4.0" />
+    <PackageReference Include="FluentNHibernate" Version="2.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.Razor.Design" Version="2.1.2" PrivateAssets="All" />
+    <PackageReference Include="NHibernate" Version="5.2.5" />
+    <PackageReference Include="Otb.AspNetCore.Utilities" Version="2.0.1" />
+    <PackageReference Include="Otb.Autofac" Version="1.0.1" />
+    <PackageReference Include="Otb.Configuration" Version="1.0.2" />
+    <PackageReference Include="Otb.Immutable" Version="1.0.1" />
+    <PackageReference Include="Otb.RabbitMq.Utilities" Version="2.0.3" />
+    <PackageReference Include="RabbitMQ.Client" Version="5.1.0" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="2.0.4" />
+    <PackageReference Include="Serilog.Sinks.RollingFile" Version="3.3.0" />
   </ItemGroup>
 
 </Project>

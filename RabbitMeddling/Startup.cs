@@ -1,47 +1,70 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using Autofac;
+using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Otb.Autofac.Modules;
+using Otb.Configuration;
+using RabbitMeddling.Services;
+using Serilog;
+using System;
+using System.IO;
+using Otb.AspNetCore.Utilities.Middleware;
+using Otb.RabbitMq.Utilities.Conventions;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace RabbitMeddling
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
-
         public IConfiguration Configuration { get; }
 
-        // This method gets called by the runtime. Use this method to add services to the container.
-        public void ConfigureServices(IServiceCollection services)
+        public ILogger Logger { get; set; }
+
+        public Startup(IConfiguration configuration, ILoggerFactory loggerFactory, IHostingEnvironment env)
         {
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            Configuration = configuration;
+            Log.Logger = ConfigureSerilog(env);
+            loggerFactory.AddConsole();
+            loggerFactory.AddSerilog();
+            Logger = loggerFactory.CreateLogger("startup");
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public IServiceProvider ConfigureServices(IServiceCollection services)
+        {
+            services.AddMvc();
+
+            var builder = new ContainerBuilder();
+            var configurationProvider = new MicrosoftConfigurationProvider("RabbitMeddling", Configuration);
+            builder.RegisterInstance(Log.Logger).As<Serilog.ILogger>();
+            builder.RegisterInstance(configurationProvider).As<IProvideConfiguration>();
+            builder.RegisterModule(new ConventionRegistrationModule(typeof(Startup).Assembly));
+            builder.RegisterModule(new RabbitMqModule(configurationProvider));
+            builder.Populate(services);
+            return builder.Build().Resolve<IServiceProvider>();
+        }
+
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
-            else
-            {
-                app.UseHsts();
-            }
 
-            app.UseHttpsRedirection();
+            app.UseLogger(Logger);
             app.UseMvc();
+        }
+
+        private Serilog.ILogger ConfigureSerilog(IHostingEnvironment hostingEnvironment)
+        {
+            var config = new LoggerConfiguration();
+            var configurationProvider = new MicrosoftConfigurationProvider("RabbitMeddling", Configuration);
+            config = hostingEnvironment.IsDevelopment() ? config.MinimumLevel.Verbose() : config.MinimumLevel.Information();
+            return config
+                .WriteTo.RollingFile(Path.Combine(hostingEnvironment.ContentRootPath, configurationProvider.GetValue<string>("Logging:Path")))
+                .CreateLogger();
         }
     }
 }
